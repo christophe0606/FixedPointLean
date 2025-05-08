@@ -1,0 +1,10 @@
+name = "FixedPointLean"
+version = "0.1.0"
+defaultTargets = ["fixedpointlean"]
+
+[[lean_lib]]
+name = "FixedPointLean"
+
+[[lean_exe]]
+name = "fixedpointlean"
+root = "Main"
