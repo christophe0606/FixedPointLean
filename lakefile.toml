@@ -3,7 +3,7 @@ version = "0.1.0"
 defaultTargets = ["fixedpointlean"]
 
 [[lean_lib]]
-name = "FixedPointLean"
+name = "FixedPoint"
 
 [[lean_exe]]
 name = "fixedpointlean"
