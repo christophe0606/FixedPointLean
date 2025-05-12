@@ -21,7 +21,7 @@ inductive Sign where
 | isUnsigned
 deriving Repr,DecidableEq
 
-@[simp]
+@[simp,reducible]
 def signStorage (s : Sign) : Nat :=
   match s with
   | .isSigned => 1
@@ -45,10 +45,19 @@ structure Q (s : Sign) (storage : Nat) (fractional : Nat) where
   val : BitVec storage
   enough_storage : hasEnoughStorage s storage fractional := by decide
   fractional_not_zero : 0 < fractional  := by decide
-  deriving Repr
+  deriving BEq,Ord,DecidableEq
 
-def mantissa (_ : Q (s : Sign) (storage : Nat) (fractional : Nat)) : Nat :=
-  storage - signStorage s - fractional
+instance : ToString (Q s storage fractional) where
+  toString x := match s with
+    | .isSigned => toString (Float.ofInt x.val.toInt / Float.ofInt (2^fractional))
+    | .isUnsigned => toString (Float.ofInt x.val.toNat / Float.ofNat (2^fractional))
+
+
+instance : Repr (Q (s : Sign) (storage : Nat) (fractional : Nat)) where
+  reprPrec x _ :=
+     match s with
+     | .isSigned => reprPrec x.val.toInt 0
+     | .isUnsigned => reprPrec x.val.toNat 0
 
 abbrev sq7 := Q .isSigned 8 7
 abbrev sq15 := Q .isSigned 16 15
@@ -148,11 +157,7 @@ instance : Coe (Q .isSigned s f) ((Q .isSigned (s+1) f))  where
            (by exact x.fractional_not_zero
            )
 
-instance : Repr (Q (s : Sign) (storage : Nat) (fractional : Nat)) where
-  reprPrec x _ :=
-     match s with
-     | .isSigned => reprPrec x.val.toInt 0
-     | .isUnsigned => reprPrec x.val.toNat 0
+
 
 instance : Add (Q (s : Sign) (storage : Nat) (fractional : Nat))  where
   add x y := .mk (x.val + y.val) x.enough_storage x.fractional_not_zero
@@ -201,6 +206,41 @@ instance : HAdd (Q (s : Sign) (storage : Nat) (fractional : Nat)) Int (Q (s : Si
 
 instance : HAdd Int (Q (s : Sign) (storage : Nat) (fractional : Nat)) (Q (s : Sign) (storage : Nat) (fractional : Nat)) where
   hAdd x y := .mk (x + y.val) y.enough_storage y.fractional_not_zero
+
+
+
+
+/--
+  Create a fixed point number from an integer.
+
+  Arguments :
+  - `x` : The integer
+  - `h0` : Proof that the fixed point is well formed.
+
+  This function is not saturating the fixed point.
+-/
+def ofInt {w f : Nat} (x : Int) (h0 : 1 + f <= w := by decide) (h1: 0 < f := by decide): Q .isSigned w f :=
+    .mk x (by
+            simp only [signStorage, Nat.zero_add,hasEnoughStorage]
+            assumption
+         )
+         (h1
+         )
+
+def ofBitVec {w f : Nat} (x : BitVec w) (h0 : signStorage s + f <= w := by decide) (h1: 0 < f := by decide): Q s w f :=
+    .mk x (by
+            simp only [signStorage, Nat.zero_add,hasEnoughStorage]
+            assumption
+         )
+         (h1
+         )
+
+--#eval narrower
+
+namespace Q
+
+def mantissa (_ : Q (s : Sign) (storage : Nat) (fractional : Nat)) : Nat :=
+  storage - signStorage s - fractional
 
 def widen (q : Q (s : Sign) (storage : Nat) (fractional : Nat))  (n : Nat)
  (hbigger : n > storage := by decide)
@@ -256,33 +296,6 @@ def widen1
  (q : Q (s : Sign) (storage : Nat) (fractional : Nat))  :
   Q s (storage + 1) (fractional) := widen q (storage + 1) (by omega)
 
-def a : sq15 := 0xffff#16
-def b : sq15 := 0x2#16
-def c : uq15 := 0xffff#16
-def prod : Q .isSigned 32 30 := a * b
-def mixedAdd : Q .isSigned 17 15 := (b : Q .isSigned 17 15) + (c : Q .isSigned 17 15)
-def bigger : Q .isSigned 64 15 := widen a 64
-def narrower : sq15 := narrow bigger 16
-
-/--
-  Create a fixed point number from an integer.
-
-  Arguments :
-  - `x` : The integer
-  - `h0` : Proof that the fixed point is well formed.
-
-  This function is not saturating the fixed point.
--/
-def ofInt {w f : Nat} (x : Int) (h0 : 1 + f <= w := by decide) (h1: 0 < f := by decide): Q .isSigned w f :=
-    .mk x (by
-            simp only [signStorage, Nat.zero_add,hasEnoughStorage]
-            assumption
-         )
-         (h1
-         )
-
---#eval narrower
-
 def satAdd (x y : Q s w f) : Q s w f :=
   let res := x.val + y.val
   if x.val.saddOverflow y.val then
@@ -309,7 +322,54 @@ def mac (acc : Q s wa (f+f)) (x y : Q s w f) (h0: w+w <= wa := by decide) : Q s 
        omega
       )) + acc
 
---#eval (1#16:Q .isSigned 16 15)
+def sat (x : Q s w f) (sat_pos : Nat)
+(_: sat_pos >= f ∧ sat_pos <= (w - signStorage s) := by decide): Q s w f :=
+  let posSat := 2^sat_pos - 1
+  let negSat := -2^sat_pos
+  if x.val.toInt > posSat then
+    .mk (posSat) x.enough_storage x.fractional_not_zero
+  else if x.val.toInt < negSat then
+    .mk (negSat) x.enough_storage x.fractional_not_zero
+  else
+    x
+
+/-!
+
+Round a number.
+
+If there is no mantissa (only a sign bit for instance), then it is not
+possible to round to 1 since 1 is not exactly representable.
+
+As consequence, to be able to round we need at least one bit of mantissa.
+
+
+-/
+def round (x : Q s w f)
+    (_: signStorage s + f < w := by decide) : Q s w f :=
+    let roundValue := .mk (1 <<< (f-1)) x.enough_storage x.fractional_not_zero
+    let r := x.satAdd roundValue
+    let mask := ~~~((BitVec.allOnes f).zeroExtend w)
+    --dbg_trace s!"Round: {roundValue}"
+    --dbg_trace s!"mask: {mask}"
+    .mk (r.val &&& mask) x.enough_storage x.fractional_not_zero
+
+end Q
+
+#eval  toString (ofBitVec 0x40#9 : Q .isSigned 9 7)
+#eval  toString (ofBitVec 0x40#9 : Q .isSigned 9 7).round
+
+
+def a : sq15 := 0xffff#16
+def b : sq15 := 0x2#16
+def c : uq15 := 0xffff#16
+
+def prod  := a * b
+def mixedAdd : Q .isSigned 17 15 := (b : Q .isSigned 17 15) + (c : Q .isSigned 17 15)
+def bigger := a.widen 64
+def narrower := bigger.narrow 16
+
+
+--#eval prod.narrow 31
 --#eval mac (ofInt 1:Q .isSigned 17 14) (0x81#8 : sq7) (4#8 : sq7)
 
 end FixedPoint
