@@ -44,7 +44,7 @@ instance : (s : Sign) -> (storage fractional : Nat) -> Decidable (hasEnoughStora
 structure Q (s : Sign) (storage : Nat) (fractional : Nat) where
   val : BitVec storage
   enough_storage : hasEnoughStorage s storage fractional := by decide
-  no_zero_bitvec : storage > 0 := by decide
+  fractional_not_zero : 0 < fractional  := by decide
   deriving Repr
 
 def mantissa (_ : Q (s : Sign) (storage : Nat) (fractional : Nat)) : Nat :=
@@ -121,40 +121,31 @@ instance : OfNat uq7 n where
 instance : Coe (Q .isUnsigned s f) ((Q .isUnsigned (s+1) f))  where
   coe x := .mk (x.val.zeroExtend (s+1))
            (by
-               have h0 : signStorage .isUnsigned + f ≤ s := by
-                 exact x.enough_storage
+               have := x.enough_storage
                simp only [signStorage, ge_iff_le]
                omega
            )
-           (by have h0 : s > 0 := by
-                 exact x.no_zero_bitvec
-               simp only [gt_iff_lt, Nat.zero_lt_succ]
+           (by exact x.fractional_not_zero
            )
 
 instance : Coe (Q .isUnsigned s f) ((Q .isSigned (s+1) f))  where
   coe x := .mk (x.val.signExtend (s+1))
            (by
-               have h0 : signStorage .isUnsigned + f ≤ s := by
-                 exact x.enough_storage
+               have := x.enough_storage
                simp only [signStorage, ge_iff_le]
                omega
            )
-           (by have h0 : s > 0 := by
-                 exact x.no_zero_bitvec
-               simp only [gt_iff_lt, Nat.zero_lt_succ]
+           (by exact x.fractional_not_zero
            )
 
 instance : Coe (Q .isSigned s f) ((Q .isSigned (s+1) f))  where
   coe x := .mk (x.val.signExtend (s+1))
            (by
-               have h0 : signStorage .isSigned + f ≤ s := by
-                 exact x.enough_storage
+               have := x.enough_storage
                simp only [signStorage, ge_iff_le]
                omega
            )
-           (by have h0 : s > 0 := by
-                 exact x.no_zero_bitvec
-               simp only [gt_iff_lt, Nat.zero_lt_succ]
+           (by exact x.fractional_not_zero
            )
 
 instance : Repr (Q (s : Sign) (storage : Nat) (fractional : Nat)) where
@@ -164,10 +155,10 @@ instance : Repr (Q (s : Sign) (storage : Nat) (fractional : Nat)) where
      | .isUnsigned => reprPrec x.val.toNat 0
 
 instance : Add (Q (s : Sign) (storage : Nat) (fractional : Nat))  where
-  add x y := .mk (x.val + y.val) x.enough_storage x.no_zero_bitvec
+  add x y := .mk (x.val + y.val) x.enough_storage x.fractional_not_zero
 
 instance : Sub (Q (s : Sign) (storage : Nat) (fractional : Nat))  where
-  sub x y := .mk (x.val - y.val) x.enough_storage x.no_zero_bitvec
+  sub x y := .mk (x.val - y.val) x.enough_storage x.fractional_not_zero
 
 
 instance : HMul (Q (s : Sign) (storage1 : Nat) (fractional1 : Nat))
@@ -178,46 +169,38 @@ instance : HMul (Q (s : Sign) (storage1 : Nat) (fractional1 : Nat))
     match s with
     | .isSigned => .mk (x.val.signExtend nw * y.val.signExtend nw)
       (by
-          have h0 : signStorage .isSigned + fractional1 ≤ storage1 := by
-            exact x.enough_storage
-          have h1 : signStorage .isSigned + fractional2 ≤ storage2 := by
-            exact y.enough_storage
+          have := x.enough_storage
+          have := y.enough_storage
           omega
       )
-      ( by have h0 : storage1 > 0 := by
-            exact x.no_zero_bitvec
-           have h1 : storage2 > 0 := by
-            exact y.no_zero_bitvec
+      ( by have := x.fractional_not_zero
+           have := y.fractional_not_zero
            omega
       )
     | .isUnsigned => .mk (x.val.zeroExtend nw * y.val.zeroExtend nw)
        (by
-          have h0 : signStorage .isUnsigned + fractional1 ≤ storage1 := by
-            exact x.enough_storage
-          have h1 : signStorage .isUnsigned + fractional2 ≤ storage2 := by
-            exact y.enough_storage
+          have := x.enough_storage
+          have := y.enough_storage
           omega
       )
-      ( by have h0 : storage1 > 0 := by
-            exact x.no_zero_bitvec
-           have h1 : storage2 > 0 := by
-            exact y.no_zero_bitvec
+      ( by have := x.fractional_not_zero
+           have := y.fractional_not_zero
            omega
       )
 
 -- Nat
 instance : HAdd (Q (s : Sign) (storage : Nat) (fractional : Nat)) Nat (Q (s : Sign) (storage : Nat) (fractional : Nat)) where
-  hAdd x y := .mk (x.val + y) x.enough_storage x.no_zero_bitvec
+  hAdd x y := .mk (x.val + y) x.enough_storage x.fractional_not_zero
 
 instance : HAdd Nat (Q (s : Sign) (storage : Nat) (fractional : Nat)) (Q (s : Sign) (storage : Nat) (fractional : Nat)) where
-  hAdd x y := .mk (x + y.val) y.enough_storage y.no_zero_bitvec
+  hAdd x y := .mk (x + y.val) y.enough_storage y.fractional_not_zero
 
 -- Int
 instance : HAdd (Q (s : Sign) (storage : Nat) (fractional : Nat)) Int (Q (s : Sign) (storage : Nat) (fractional : Nat)) where
-  hAdd x y := .mk (x.val + y) x.enough_storage x.no_zero_bitvec
+  hAdd x y := .mk (x.val + y) x.enough_storage x.fractional_not_zero
 
 instance : HAdd Int (Q (s : Sign) (storage : Nat) (fractional : Nat)) (Q (s : Sign) (storage : Nat) (fractional : Nat)) where
-  hAdd x y := .mk (x + y.val) y.enough_storage y.no_zero_bitvec
+  hAdd x y := .mk (x + y.val) y.enough_storage y.fractional_not_zero
 
 def widen (q : Q (s : Sign) (storage : Nat) (fractional : Nat))  (n : Nat)
  (hbigger : n > storage := by decide)
@@ -227,54 +210,45 @@ def widen (q : Q (s : Sign) (storage : Nat) (fractional : Nat))  (n : Nat)
   | .isSigned =>
       .mk (q.val.signExtend n)
          (by
-            have h0 : signStorage .isSigned + fractional ≤ storage := by
-                 exact q.enough_storage
+            have := q.enough_storage
             simp only [signStorage, ge_iff_le]
             omega
          )
          (
-            by have h0 : storage > 0 := by
-                 exact q.no_zero_bitvec
-               omega
+            by exact q.fractional_not_zero
          )
   | .isUnsigned =>
       .mk (q.val.zeroExtend n)
           (by
-            have h0 : signStorage .isUnsigned + fractional ≤ storage := by
-                 exact q.enough_storage
+            have := q.enough_storage
             simp only [signStorage, Nat.zero_add, ge_iff_le]
             omega
          )
          (
-            by have h0 : storage > 0 := by
-                 exact q.no_zero_bitvec
-               omega
+            by exact q.fractional_not_zero
          )
 
 def narrow (q : Q (s : Sign) (storage : Nat) (fractional : Nat)) (n : Nat)
-  (enough_bits : n >= fractional + signStorage s := by decide)
-  (no_zero_bitvec : n > 0 := by decide):
+  (enough_bits : n >= fractional + signStorage s := by decide):
   Q s n (fractional) :=
   match h : s with
   | .isSigned =>
       .mk ((q.val.sshiftRight (storage-n)).truncate n)
          (by
-            have h0 : signStorage .isSigned + fractional ≤ storage := by
-                 exact q.enough_storage
+            have := q.enough_storage
             simp_all only [signStorage, Nat.zero_add, ge_iff_le]
             omega
          )
-         ( by simp_all only [signStorage,gt_iff_lt]
+         ( by exact q.fractional_not_zero
          )
   | .isUnsigned =>
       .mk ((q.val >>> (storage - n)).truncate n)
           (by
-            have h0 : signStorage .isUnsigned + fractional ≤ storage := by
-                 exact q.enough_storage
+            have := q.enough_storage
             simp only [signStorage, Nat.zero_add, ge_iff_le]
             omega
          )
-         ( by simp_all only [signStorage,gt_iff_lt]
+         ( by exact q.fractional_not_zero
          )
 
 
@@ -299,13 +273,12 @@ def narrower : sq15 := narrow bigger 16
 
   This function is not saturating the fixed point.
 -/
-def ofInt {w f : Nat} (x : Int) (h0 : 1 + f <= w := by decide): Q .isSigned w f :=
+def ofInt {w f : Nat} (x : Int) (h0 : 1 + f <= w := by decide) (h1: 0 < f := by decide): Q .isSigned w f :=
     .mk x (by
             simp only [signStorage, Nat.zero_add,hasEnoughStorage]
             assumption
          )
-         (by simp only [gt_iff_lt]
-             omega
+         (h1
          )
 
 --#eval narrower
@@ -313,31 +286,30 @@ def ofInt {w f : Nat} (x : Int) (h0 : 1 + f <= w := by decide): Q .isSigned w f 
 def satAdd (x y : Q s w f) : Q s w f :=
   let res := x.val + y.val
   if x.val.saddOverflow y.val then
-    if res.msb then .mk (.intMax w) x.enough_storage x.no_zero_bitvec
-    else .mk (.intMin w) x.enough_storage x.no_zero_bitvec
+    if res.msb then .mk (.intMax w) x.enough_storage x.fractional_not_zero
+    else .mk (.intMin w) x.enough_storage x.fractional_not_zero
   else
-   .mk res x.enough_storage x.no_zero_bitvec
+   .mk res x.enough_storage x.fractional_not_zero
 
 def satSub (x y : Q s w f) : Q s w f :=
   let res := x.val - y.val
   if x.val.ssubOverflow y.val then
-    if res.msb then .mk (.intMax w) x.enough_storage x.no_zero_bitvec
-    else .mk (.intMin w) x.enough_storage x.no_zero_bitvec
+    if res.msb then .mk (.intMax w) x.enough_storage x.fractional_not_zero
+    else .mk (.intMin w) x.enough_storage x.fractional_not_zero
   else
-   .mk res x.enough_storage x.no_zero_bitvec
+   .mk res x.enough_storage x.fractional_not_zero
 
 def mac (acc : Q s wa (f+f)) (x y : Q s w f) (h0: w+w <= wa := by decide) : Q s wa (f+f) :=
     if h : w+w = wa then
        h ▸ (x*y) + acc
     else
     (widen (x * y) wa (by
-       have hpos : 0 < w := by
-        exact x.no_zero_bitvec
+       have := x.fractional_not_zero
        simp only [gt_iff_lt]
        omega
       )) + acc
 
 --#eval (1#16:Q .isSigned 16 15)
-#eval mac (ofInt 1:Q .isSigned 17 14) (0x81#8 : sq7) (4#8 : sq7)
+--#eval mac (ofInt 1:Q .isSigned 17 14) (0x81#8 : sq7) (4#8 : sq7)
 
 end FixedPoint
