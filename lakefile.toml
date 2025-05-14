@@ -5,6 +5,11 @@ defaultTargets = ["fixedpointlean"]
 [[lean_lib]]
 name = "FixedPoint"
 
+[[require]]
+scope = "leanprover"
+name = "doc-gen4"
+rev = "v4.19.0"
+
 [[lean_exe]]
 name = "fixedpointlean"
 root = "Main"

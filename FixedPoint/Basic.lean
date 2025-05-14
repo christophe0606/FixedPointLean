@@ -333,6 +333,21 @@ def sat (x : Q s w f) (sat_pos : Nat)
   else
     x
 
+def narrowWithSat (q : Q (s : Sign) (storage : Nat) (fractional : Nat)) (n : Nat)
+  (enough_bits : n >= fractional + signStorage s := by decide):
+  Q s n fractional := (q.narrow n (by
+         have := q.enough_storage
+         have := q.fractional_not_zero
+         simp_all only [signStorage, ge_iff_le]
+      )).sat fractional (by
+          have := q.enough_storage
+          have := q.fractional_not_zero
+          simp_all only [signStorage, ge_iff_le]
+          omega
+      )
+
+
+
 /-!
 
 Round a number.
@@ -352,6 +367,16 @@ def round (x : Q s w f)
     --dbg_trace s!"Round: {roundValue}"
     --dbg_trace s!"mask: {mask}"
     .mk (r.val &&& mask) x.enough_storage x.fractional_not_zero
+
+def narrowWithRoundAndSat (q : Q (s : Sign) (storage : Nat) (fractional : Nat)) (n : Nat)
+  (enough_bits : n >= fractional + signStorage s := by decide):
+  Q s n fractional := ((q.round (by
+     sorry
+  )).narrow n (by
+     sorry
+  )).sat fractional (by
+     sorry
+  )
 
 end Q
 
