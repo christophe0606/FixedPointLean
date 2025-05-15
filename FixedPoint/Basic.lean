@@ -8,6 +8,8 @@ Authors: Christophe Favergeon
 /-!
 # Fixed point numbers
 
+[The book](content/index.html)
+
 This file defines fixed point numbers and some operations on them.
 It is an exercise to learn Lean4.
 

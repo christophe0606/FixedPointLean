@@ -19,16 +19,35 @@ jobs:
       # uses lean standard action with all default input values
       - uses: leanprover/lean-action@v1
 
+      - name: Setup mdbook
+        uses: peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: 'v0.4.17'
+
       - name: Build project
         run: ~/.elan/bin/lake build
 
       - name: Build project API documentation
         run: ~/.elan/bin/lake -R -Kenv=dev build FixedPoint:docs
 
+      - name: Copy doc to dest folder 
+        run: |
+          rm -rf docbuild/book
+          cp -r .lake/build/doc docbuild/book
+
+      - name: Gen book
+        run: |
+          pushd docbuild
+          mkdir -p book/content
+          mdbook build --dest-dir book/content
+          popd
+
+      
+
       - name: "Upload website (API documentation)"
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .lake/build/doc
+          path: docbuild/book
         
       - name: Deploy to GitHub Pages
         id: deployment
