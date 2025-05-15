@@ -1,32 +1,48 @@
-import Std.Tactic.BVDecide
+/-
+Copyright (c) 2025 Christophe Favergeon. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Christophe Favergeon
 
+-/
+
+/-!
+# Fixed point numbers
+
+This file defines fixed point numbers and some operations on them.
+It is an exercise to learn Lean4.
+
+It is far from being a complete library and it is a work in progress.
+
+## Tags
+
+fixed point, fixed point numbers, fixed point arithmetic, fixed point operations, fixed point library, dsp
+-/
 
 namespace FixedPoint
 open BitVec
 
-def bounded {n : Nat} (x : BitVec n) : Bool :=
-  let shifted := (x >>> (n-2)) &&& 3#n
-  (shifted == 0#n) ∧ (shifted == 3#n)
+/-! ## Datatype definitions
 
-theorem unsat_add
-   (x y : BitVec 32)
-   (xpos : bounded x = true)
-   (ypos : bounded y = true)
-   : BitVec.saddOverflow x y = false := by
-      simp_all [bounded]
-      bv_decide
+-/
 
+/-- Fixed point numbers can be signed or unsigned -/
 inductive Sign where
 | isSigned
 | isUnsigned
-deriving Repr,DecidableEq
+deriving Repr
 
+/-- Numbers of bits used by the sign in the encoding of the number -/
 @[simp,reducible]
 def signStorage (s : Sign) : Nat :=
   match s with
   | .isSigned => 1
   | .isUnsigned => 0
 
+/--
+Check if the BitVec has enough bit to encode the sign and
+the fractional part. Remaining bits are the integer part.
+
+-/
 @[reducible,inline]
 def hasEnoughStorage (s : Sign) (storage : Nat) (fractional : Nat) : Prop :=
   signStorage s + fractional ≤ storage
@@ -40,13 +56,29 @@ instance : (s : Sign) -> (storage fractional : Nat) -> Decidable (hasEnoughStora
         simp only [signStorage, Nat.zero_add, ge_iff_le] at h
         exact h)
 
+/-! ### The fixed point number definition
 
+-/
+
+/--
+
+Definition for the fixed point datatype.
+
+It has a sign, a width (in bits) and the numbers of bits for the
+fractional part.
+
+* `val` is the BitVec that contains the value of the fixed point number
+* `enough_storage` is a proof that the BitVec has enough bits to encode the sign and the fractional part
+* `fractional_not_zero` is a proof that the fractional part is not zero
+
+-/
 structure Q (s : Sign) (storage : Nat) (fractional : Nat) where
   val : BitVec storage
   enough_storage : hasEnoughStorage s storage fractional := by decide
   fractional_not_zero : 0 < fractional  := by decide
   deriving BEq,Ord,DecidableEq
 
+/-- Fixed points are represented as string using float -/
 instance : ToString (Q s storage fractional) where
   toString x := match s with
     | .isSigned => toString (Float.ofInt x.val.toInt / Float.ofInt (2^fractional))
@@ -59,6 +91,10 @@ instance : Repr (Q (s : Sign) (storage : Nat) (fractional : Nat)) where
      | .isSigned => reprPrec x.val.toInt 0
      | .isUnsigned => reprPrec x.val.toNat 0
 
+
+/-! ### Abbreviations for common fixed point numbers
+
+-/
 abbrev sq7 := Q .isSigned 8 7
 abbrev sq15 := Q .isSigned 16 15
 abbrev sq31 := Q .isSigned 32 31
@@ -69,12 +105,9 @@ abbrev uq15 := Q .isUnsigned 16 15
 abbrev uq31 := Q .isUnsigned 32 31
 abbrev uq63 := Q .isUnsigned 64 63
 
-@[inline,reducible]
-def minFractional (s : Sign) (storage : Nat) : Nat :=
-  match s with
-  | .isSigned => storage - 1
-  | .isUnsigned => storage
+/-! ### Conversion operations
 
+-/
 
 instance : Coe (BitVec 64) sq63  where
   coe x := .mk x
@@ -127,6 +160,10 @@ instance : OfNat uq15 n where
 instance : OfNat uq7 n where
     ofNat := .mk n
 
+/-! ### Conversions between signed and unsigned
+
+-/
+
 instance : Coe (Q .isUnsigned s f) ((Q .isUnsigned (s+1) f))  where
   coe x := .mk (x.val.zeroExtend (s+1))
            (by
@@ -158,6 +195,9 @@ instance : Coe (Q .isSigned s f) ((Q .isSigned (s+1) f))  where
            )
 
 
+/-! ### Instance Operations for arithmetic operations
+
+-/
 
 instance : Add (Q (s : Sign) (storage : Nat) (fractional : Nat))  where
   add x y := .mk (x.val + y.val) x.enough_storage x.fractional_not_zero
@@ -209,6 +249,13 @@ instance : HAdd Int (Q (s : Sign) (storage : Nat) (fractional : Nat)) (Q (s : Si
 
 
 
+/-! ### Other convertion Operations
+
+Convertion operations that are more general and require
+additional proofs.
+
+-/
+
 
 /--
   Create a fixed point number from an integer.
@@ -216,8 +263,9 @@ instance : HAdd Int (Q (s : Sign) (storage : Nat) (fractional : Nat)) (Q (s : Si
   Arguments :
   - `x` : The integer
   - `h0` : Proof that the fixed point is well formed.
+  - `h1` : Proof that the fractional part is not zero.
 
-  This function is not saturating the fixed point.
+  This function is *not* saturating the fixed point.
 -/
 def ofInt {w f : Nat} (x : Int) (h0 : 1 + f <= w := by decide) (h1: 0 < f := by decide): Q .isSigned w f :=
     .mk x (by
@@ -227,6 +275,16 @@ def ofInt {w f : Nat} (x : Int) (h0 : 1 + f <= w := by decide) (h1: 0 < f := by 
          (h1
          )
 
+/--
+  Create a fixed point number from a BitVec.
+
+  Arguments :
+  - `x` : The BitVec
+  - `h0` : Proof that the fixed point is well formed.
+  - `h1` : Proof that the fractional part is not zero.
+
+  This function is *not* saturating the fixed point.
+-/
 def ofBitVec {w f : Nat} (x : BitVec w) (h0 : signStorage s + f <= w := by decide) (h1: 0 < f := by decide): Q s w f :=
     .mk x (by
             simp only [signStorage, Nat.zero_add,hasEnoughStorage]
@@ -235,16 +293,19 @@ def ofBitVec {w f : Nat} (x : BitVec w) (h0 : signStorage s + f <= w := by decid
          (h1
          )
 
---#eval narrower
 
+/-! ## Fixed point specific operations
+
+-/
 namespace Q
 
-def mantissa (_ : Q (s : Sign) (storage : Nat) (fractional : Nat)) : Nat :=
+/-- Number of bits for the integer part -/
+def integerPartBits (_ : Q (s : Sign) (storage : Nat) (fractional : Nat)) : Nat :=
   storage - signStorage s - fractional
 
+/-- Convert the number to a variant with more storage -/
 def widen (q : Q (s : Sign) (storage : Nat) (fractional : Nat))  (n : Nat)
- (hbigger : n > storage := by decide)
-  :
+ (widening : n > storage := by decide):
   Q s n (fractional) :=
   match s with
   | .isSigned =>
@@ -268,8 +329,16 @@ def widen (q : Q (s : Sign) (storage : Nat) (fractional : Nat))  (n : Nat)
             by exact q.fractional_not_zero
          )
 
+/--
+
+Narrow the number to a variant with less storage.
+
+The integer part if *truncated*.
+No saturation and no rounding is applied.
+
+-/
 def narrow (q : Q (s : Sign) (storage : Nat) (fractional : Nat)) (n : Nat)
-  (enough_bits : n >= fractional + signStorage s := by decide):
+  (enough_bits : n >= fractional + signStorage s := by decide) (_ : storage > n := by decide):
   Q s n (fractional) :=
   match h : s with
   | .isSigned =>
@@ -291,11 +360,12 @@ def narrow (q : Q (s : Sign) (storage : Nat) (fractional : Nat)) (n : Nat)
          ( by exact q.fractional_not_zero
          )
 
-
+/-- Convenience function for a common case -/
 def widen1
  (q : Q (s : Sign) (storage : Nat) (fractional : Nat))  :
   Q s (storage + 1) (fractional) := widen q (storage + 1) (by omega)
 
+/-- Saturating addition -/
 def satAdd (x y : Q s w f) : Q s w f :=
   let res := x.val + y.val
   if x.val.saddOverflow y.val then
@@ -304,6 +374,7 @@ def satAdd (x y : Q s w f) : Q s w f :=
   else
    .mk res x.enough_storage x.fractional_not_zero
 
+/-- Saturating subtraction -/
 def satSub (x y : Q s w f) : Q s w f :=
   let res := x.val - y.val
   if x.val.ssubOverflow y.val then
@@ -312,6 +383,7 @@ def satSub (x y : Q s w f) : Q s w f :=
   else
    .mk res x.enough_storage x.fractional_not_zero
 
+/-- Multiply accumulate *without* saturation -/
 def mac (acc : Q s wa (f+f)) (x y : Q s w f) (h0: w+w <= wa := by decide) : Q s wa (f+f) :=
     if h : w+w = wa then
        h ▸ (x*y) + acc
@@ -322,45 +394,80 @@ def mac (acc : Q s wa (f+f)) (x y : Q s w f) (h0: w+w <= wa := by decide) : Q s 
        omega
       )) + acc
 
-def sat (x : Q s w f) (sat_pos : Nat)
-(_: sat_pos >= f ∧ sat_pos <= (w - signStorage s) := by decide): Q s w f :=
-  let posSat := 2^sat_pos - 1
-  let negSat := -2^sat_pos
-  if x.val.toInt > posSat then
-    .mk (posSat) x.enough_storage x.fractional_not_zero
-  else if x.val.toInt < negSat then
-    .mk (negSat) x.enough_storage x.fractional_not_zero
-  else
-    x
+/-- Multiply accumulate *with* saturation -/
+def satMac (acc : Q s wa (f+f)) (x y : Q s w f) (h0: w+w <= wa := by decide) : Q s wa (f+f) :=
+    if h : w+w = wa then
+       (h ▸ (x*y)).satAdd acc
+    else
+    (widen (x * y) wa (by
+       have := x.fractional_not_zero
+       simp only [gt_iff_lt]
+       omega
+      )).satAdd acc
 
+/-- Saturation  -/
+def sat (x : Q s w f) (sat_pos : Nat)
+(sat_bit: sat_pos <= (w - signStorage s) := by decide): Q s w f :=
+  match s with
+  | .isSigned =>
+      let posSat := 2^sat_pos - 1
+      let negSat := -2^sat_pos
+      if x.val.toInt > posSat then
+        .mk (posSat) x.enough_storage x.fractional_not_zero
+      else if x.val.toInt < negSat then
+        .mk (negSat) x.enough_storage x.fractional_not_zero
+      else
+        x
+  | .isUnsigned =>
+      let posSat := 2^sat_pos - 1
+      if x.val.toNat > posSat then
+        .mk (posSat) x.enough_storage x.fractional_not_zero
+      else
+        x
+
+/--
+Narrow with saturation
+
+The saturation assumes that there is no integer part.
+
+-/
 def narrowWithSat (q : Q (s : Sign) (storage : Nat) (fractional : Nat)) (n : Nat)
-  (enough_bits : n >= fractional + signStorage s := by decide):
-  Q s n fractional := (q.narrow n (by
+  (enough_bits : n >= fractional + signStorage s := by decide)
+  (narrowing : n < storage := by decide):
+  Q s n fractional :=
+    let narrowed := q.narrow n (by
          have := q.enough_storage
          have := q.fractional_not_zero
          simp_all only [signStorage, ge_iff_le]
-      )).sat fractional (by
-          have := q.enough_storage
-          have := q.fractional_not_zero
-          simp_all only [signStorage, ge_iff_le]
-          omega
+      ) (narrowing)
+    let saturated := narrowed.sat fractional (by
+          simp_all only [signStorage]
+          match h:s with
+          | .isSigned =>
+               simp_all only [h,ge_iff_le,signStorage]
+               omega
+          | .isUnsigned =>
+               simp_all only [h,ge_iff_le,signStorage]
+               omega
       )
+    saturated
 
 
 
-/-!
+/--
 
 Round a number.
 
-If there is no mantissa (only a sign bit for instance), then it is not
+If there is no integer part (only a sign bit for instance), then it is not
 possible to round to 1 since 1 is not exactly representable.
 
-As consequence, to be able to round we need at least one bit of mantissa.
+As consequence, to be able to round we need at least one bit of
+integer part hence the condition `signStorage s + f < w`.
 
 
 -/
 def round (x : Q s w f)
-    (_: signStorage s + f < w := by decide) : Q s w f :=
+    (enough_storage: signStorage s + f < w := by decide) : Q s w f :=
     let roundValue := .mk (1 <<< (f-1)) x.enough_storage x.fractional_not_zero
     let r := x.satAdd roundValue
     let mask := ~~~((BitVec.allOnes f).zeroExtend w)
@@ -368,33 +475,30 @@ def round (x : Q s w f)
     --dbg_trace s!"mask: {mask}"
     .mk (r.val &&& mask) x.enough_storage x.fractional_not_zero
 
+/-- Narrow with rounding and saturation -/
 def narrowWithRoundAndSat (q : Q (s : Sign) (storage : Nat) (fractional : Nat)) (n : Nat)
-  (enough_bits : n >= fractional + signStorage s := by decide):
-  Q s n fractional := ((q.round (by
-     sorry
-  )).narrow n (by
-     sorry
-  )).sat fractional (by
-     sorry
-  )
+  (enough_bits : n >= fractional + signStorage s := by decide)
+  (narrowing : n < storage := by decide):
+  Q s n fractional :=
+    let rounded := q.round (by
+        simp_all only [signStorage,ge_iff_le]
+        omega
+    )
+    let narrowed := rounded.narrow n
+       (by simp_all only [signStorage,ge_iff_le])
+       (by simp_all only [signStorage,ge_iff_le])
+    let saturated := narrowed.sat fractional
+        ( by match h:s with
+             | .isSigned =>
+                  simp_all only [h,ge_iff_le,signStorage]
+                  omega
+             | .isUnsigned =>
+                  simp_all only [h,ge_iff_le,signStorage]
+                  omega
+        )
+    saturated
 
 end Q
 
-#eval  toString (ofBitVec 0x40#9 : Q .isSigned 9 7)
-#eval  toString (ofBitVec 0x40#9 : Q .isSigned 9 7).round
-
-
-def a : sq15 := 0xffff#16
-def b : sq15 := 0x2#16
-def c : uq15 := 0xffff#16
-
-def prod  := a * b
-def mixedAdd : Q .isSigned 17 15 := (b : Q .isSigned 17 15) + (c : Q .isSigned 17 15)
-def bigger := a.widen 64
-def narrower := bigger.narrow 16
-
-
---#eval prod.narrow 31
---#eval mac (ofInt 1:Q .isSigned 17 14) (0x81#8 : sq7) (4#8 : sq7)
 
 end FixedPoint
