@@ -466,8 +466,7 @@ integer part hence the condition `signStorage s + f < w`.
 
 
 -/
-def round (x : Q s w f)
-    (enough_storage: signStorage s + f < w := by decide) : Q s w f :=
+def round (x : Q s w f) : Q s w f :=
     let roundValue := .mk (1 <<< (f-1)) x.enough_storage x.fractional_not_zero
     let r := x.satAdd roundValue
     let mask := ~~~((BitVec.allOnes f).zeroExtend w)
@@ -480,10 +479,7 @@ def narrowWithRoundAndSat (q : Q (s : Sign) (storage : Nat) (fractional : Nat)) 
   (enough_bits : n >= fractional + signStorage s := by decide)
   (narrowing : n < storage := by decide):
   Q s n fractional :=
-    let rounded := q.round (by
-        simp_all only [signStorage,ge_iff_le]
-        omega
-    )
+    let rounded := q.round
     let narrowed := rounded.narrow n
        (by simp_all only [signStorage,ge_iff_le])
        (by simp_all only [signStorage,ge_iff_le])
