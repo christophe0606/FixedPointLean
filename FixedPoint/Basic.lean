@@ -8,16 +8,13 @@ Authors: Christophe Favergeon
 /-!
 # Fixed point numbers
 
-[The book](content/index.html)
-
 This file defines fixed point numbers and some operations on them.
-It is an exercise to learn Lean4.
 
-It is far from being a complete library and it is a work in progress.
+It is an exercise to learn Lean4 and will never be a complete library.
 
-## Tags
+If you're new to theorem proving, I have written a
+[quick intro for embedded developers](content/index.html)
 
-fixed point, fixed point numbers, fixed point arithmetic, fixed point operations, fixed point library, dsp
 -/
 
 namespace FixedPoint
@@ -210,7 +207,7 @@ instance : Sub (Q (s : Sign) (storage : Nat) (fractional : Nat))  where
 
 instance : HMul (Q (s : Sign) (storage1 : Nat) (fractional1 : Nat))
                 (Q (s : Sign) (storage2 : Nat) (fractional2 : Nat))
-                (Q (s : Sign) (storage1+storage2 : Nat) (fractional1 + fractional2)) where
+                (Q (s : Sign) (storage1+storage2 : Nat) (fractional1 + fractional2 : Nat)) where
   hMul x y :=
     let nw := storage1 + storage2
     match s with

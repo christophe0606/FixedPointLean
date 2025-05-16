@@ -33,7 +33,7 @@ jobs:
       - name: Copy doc to dest folder 
         run: |
           rm -rf docbuild/book
-          cp -r .lake/build/doc docbuild/book
+          cp -r .lake/build/doc/* docbuild/book/
 
       - name: Gen book
         run: |

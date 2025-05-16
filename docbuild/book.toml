@@ -3,7 +3,9 @@ authors = ["Christophe Favergeon"]
 language = "en"
 src = "src"
 title = "Intro to theorem proving for the embedded developer"
+git-repository-url="https://github.com/christophe0606/FixedPointLean"
 
 [output.html]
 additional-css = [ "custom.css","pygments.css"]
 mathjax-support = true
+default-theme = "Rust"

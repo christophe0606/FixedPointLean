@@ -1,3 +1,6 @@
 # Summary
 
-- [Chapter 1](./chapter_1.md)
+- [Introduction](./intro.md)
+- [Calculus of Inductive Constructions](./cic.md)
+- [Examples](./examples.md)
+- [References](./references.md)
