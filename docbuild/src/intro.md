@@ -20,17 +20,17 @@ Sets are untyped. For instance, one could have the set: \\(\\{1,"test",\\{"subse
 
 Set theory uses classical logic where you can prove that some things exist but you can't construct an example. 
 
-For instance, using the law of the excluded middle you know that \\(A ⋁ ¬A\\) but you don't know whether \\(A\\) is true or false.
+For instance, using the law of the excluded middle you know that \\(A ⋁ ¬A\\) (`A OR NOT A`) is true but you don't know whether \\(A\\) is true or false.
 
 # Another foundation for Mathematics 
 
 It is possible to build mathematics on top of other foundations. And lots of theorem provers use the calculus of inductive constructions.
 
-It is like a programming language! Yes! It is possible to use a programming language as a foundation of mathematics.
+It is like a programming language! It is possible to use a programming language as a foundation of mathematics and it is surprising the first time you read this. But, it is not your typical programming language.
 
 We are going to use the Lean 4 theorem prover to explain what it means and give some examples.
 
 Install Lean 4 using [this documentation](https://lean-lang.org/documentation/setup/). It comes as a VS Code extension.
 
 
-In the next paragraph we will study the calculus of inductive constructions using Lean 4 examples and finally explain where the theorems are.
+In the next paragraph we will study the calculus of inductive constructions using Lean 4 examples and finally explain what we mean by theorem proving and how to use it.

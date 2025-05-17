@@ -1,10 +1,20 @@
 # The Calculus of Inductive Constructions
 
 From now on, we will use the Lean 4 VS Code extension to introduce the concepts.
+When you have a Lean4 file opened in VS Code, you can see lots of information in the info view. The development is interactive.
+
+You can use
+
+```lean hljs
+#eval expr
+```
+in your source file to evaluate an expression and see the result in the info view. 
+
+With the info view, it is easier to explore and experiment.
 
 ## Comparisons with the C programming language
 
-In this alternative foundation of mathematics, the calculus of inductive constructions, functions are considered a primitive concept.
+In this alternative foundation of mathematics, the calculus of inductive constructions, functions are considered a primitive concept. It is the first big difference with set theory where functions are just defined as sets and are not a primitive concept.
 
 For instance, let's define addition:
 
@@ -45,7 +55,7 @@ structure Point (t : Type) where
   deriving Repr
 ```
 
-It is similar to what you can do in other programming languages.
+It is similar to what you can do in other programming languages (for instance with `C++` templates).
 
 As in `C`, you can create enumerations and unions. Lean 4 provides inductive types for this. Here are some examples:
 
@@ -88,16 +98,13 @@ inductive IntOrFloat where
   deriving Repr
 ```
 
-`int` and `float` replace the tag in the `C` structure. You can't define an union without a tag to know which case should be selected.
+`IntOrFloat.int` and `IntOrFloat.float` replace the tag field in the `C` structure. You can't define an union without a tag to know which case should be selected.
 
-`int` and `float` are also constructors: the only way to create elements of this type.
+`IntOrFloat.int` and `IntOrFloat.float` are the constructors: the only way to create elements of this type.
 
 ```lean hljs
 #check IntOrFloat.int 3
 ```
-
-`#check` is useful to get the type of an expression. As shown in the info view, the type is `IntOrFloat`.
-
 
 In `C` you would have written:
 
@@ -105,6 +112,13 @@ In `C` you would have written:
 mystruct.tag = 0;
 mystruct.value.i = 3;
 ```
+
+to create an `int` in the union.
+
+`#check` is useful to get the type of an expression. As shown in the info view, the type is `IntOrFloat`. 
+
+`IntOrFloat.int` and `IntOrFloat.float` are not subclasses. The created type is always `IntOrFloat`.
+
 
 Then, in `C` to extract and process a value from the union, you would write:
 
@@ -128,7 +142,7 @@ def f (s : IntOrFloat) : String :=
   | .float f => s!"{f}"
 ```
 
-We have defined a function that translates the content into a string. The only way to access the content is through the `match`. Unlike `C`, where you could forget to check the tag before accessing a field, with `match` you are required to check the tag.
+We have defined a function `f` that translates the content into a string. The only way to access the content is through the `match`. Unlike `C`, where you could forget to check the tag before accessing a field, with `match` you are required to check the tag.
 
 `inductive` types are powerful: they can be polymorphic and recursive. Here is the definition of a binary tree:
 
@@ -163,19 +177,25 @@ inductive Either (a b : Type) where
   deriving Repr
 ```
 
+`Either` is a bit like the `IntOrFloat` type but more general. `IntOrFloat` could have been defined as `Either Int Float`.
+
+
 ```lean hljs
 def g {a b : Type} (x : Pair a (Pair b a)) : a := x.right.right
 ```
+Function `g` is extracting the right most element from its argument `x`.
 
 Function `g` is polymorphic. The types are arguments to the function. This is different from some other polymorphic languages, where the types are information about the arguments but not arguments themselves.
 
-In most cases, Lean 4 can guess those arguments so they are marked as being implicit using `{}` instead of `()`. If Lean 4 can't guess the types, you would have to provide them.
+In most cases, Lean 4 can guess those arguments so they are marked as being implicit using `{}` instead of `()`. If Lean4 can't guess the types, you would have to provide the types as arguments.
 
 As a consequence, `g` could be used as `g x` if the type `a` and `b` can be inferred from the value `x`. Otherwise, you may have to write something like `@g Int Float x` where `@g` refers to the form with all implicit arguments made explicit.
 
+In this later form, `Int` and `Float` are used as arguments of the function.
+
 ## Logic and proofs
 
-Logic is often presented in Hilbert style where there is only one rule and an infinity many axioms : axiom schemas.
+Logic is often presented in Hilbert style where there is only one rule and an infinity of axioms: the axiom schemas.
 
 The rule is modus ponens: if `A` is true and `A` implies `B` then `B` is true.
 
@@ -198,13 +218,13 @@ For instance, for the `AND` logical connective:
 * If  proposition `A` is true and `B` is true then `A ∧ B` is true. Let's call this rule `And.intro`.
 * If `A ∧ B` is true then we can either deduce `A` using the rule `And.left` or we can deduce `B` with `And.right`. Both rule eliminate `∧`
 
-How can we prove:
+How can we prove ?
 
 \\[
 A ∧ B ∧ A → A
 \\]
 
-Using the rule, if the starting proposition is `p`, we can write:
+Using the elimination rules, if the initial proposition is `p`, we can write:
 
 \\[
 And.right(And.right(p))
@@ -230,17 +250,16 @@ See how we can prevent division by zero:
 
 ```lean hljs
 
-def div (x y : Int) (no_zero : y != 0): Int :=
-  x / y
+def div (x y : Int) (no_zero : y != 0): Int := x / y
 ```
 
-This function takes two `Ints` as arguments and the third argument is a proof that `y` is not zero.
+This function takes two `Int` as arguments and the third argument is a proof that `y` is not zero.
 
-To use this function in your program you have to provide the proof.
+To use this function in your program you have to provide a proof !
 
-But with proofs, we are not interested in what is computed. With programs, if you expect a result `3` and you get `10` it is a bug. With proofs, you are only interested in the existence of a proof: the goal is to have a program that typechecks.
+With proofs, we are not interested in what is computed. With programs, if you expect a result `3` and you get `10` it is a bug. With proofs, you are only interested in the existence of a proof: the goal is to have a program that typechecks.
 
-In this context, it is easier to let the computer write some parts of the proof. You can write some parts of the proof as program as it was done before. But you can rely on powerful macros - called tactics - that will generate some parts of those proofs when you build you program.
+In this context, it is easier to let the computer write some parts of the proof. You can rely on powerful macros - called tactics - that will generate some parts of those proofs when you build the program. You can mix tactics with code that you write to generate the final proof. Sometimes it is easier to write the code directly than to use tactics.
 
 Let's revisit our first proof:
 
@@ -257,13 +276,16 @@ theorem proof {a b : Prop} (p : a ∧ b ∧ a) : a := p.right.right
 Now, we want to use some tactics to prove this theorem instead of having to write the program:
 
 ```lean hljs
-theorem proof {a b : Prop} (p : a ∧ b ∧ a) : a := by 
-  simp_all
+theorem proof {a b : Prop} (p : a ∧ b ∧ a) : a := by simp_all
 ```
 
 `by` is used to enter the tactic mode. Several tactics can be applied in sequence. Here we have used the tactic `simp_all`. Lean 4 has an extensible database of theorems used to simplify expressions, which it is used here to prove that `a ∧ b ∧ a` implies `a`.
 
 We have focused on the `AND` logical connective. `OR` is similar to the `Either` datatype we have introduced earlier.
+
+What are the elimination rules for `OR` ?
+If you have `A OR B` and want to prove `C` then you need to be able to prove `C` from `A` and to prove `C` from `B`. To eliminate, `A OR B` you need two proofs: one for each case.
+It corresponds to the pattern matching we have been using to work with the `Either` type or the `IntOrFloat` type.
 
 To summarize:
 * Types (`Int`, `String` ...) live in the `Types` universes
@@ -273,8 +295,10 @@ To summarize:
 * Proof are written using `theorem`. 
 * Tactics are available to assist with code generation and are mostly used in the `theorem` context.
 
-In mathematics, we need predicates: propositions that depend on variables. For instance, one may want to define the predicate `isEven n` for `n` an integer. `isEven 2`, `isEven 3` ... are different propositions. Similarly, in the type universe, `Vector 2 Float` and `Vector 3 Float` would be different types for vectors of different lengths.
+But it is not enough. In mathematics, we need predicates: propositions that depend on variables. For instance, one may want to define the predicate `isEven n` for `n` an integer. `isEven 2`, `isEven 3` ... are different propositions. 
 
-`Vector n Float` is a dependent type because it depends on the value `n`. Dependent types and propositions are very powerful and necessary to express complex properties.
+Similarly, in the type universe, `Vector 2 Float` and `Vector 3 Float` would be different types for vectors of different lengths.
+
+`Vector n Float` is a dependent type because it depends on the value `n`. Dependent types and dependent propositions are very powerful and necessary to express complex properties.
 
 In next chapter, we will look at a few examples to see how all of this could be used by an embedded developer.
