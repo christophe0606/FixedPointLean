@@ -39,3 +39,6 @@ def narrower := bigger.narrow 16
 
 --#eval prod.narrow 31
 --#eval mac (ofInt 1:Q .isSigned 17 14) (0x81#8 : sq7) (4#8 : sq7)
+
+#eval s!"{0x8001#sq15}"
+#eval s!"{0x8001#uq15}"

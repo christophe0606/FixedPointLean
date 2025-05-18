@@ -274,6 +274,14 @@ def ofInt {w f : Nat} (x : Int) (h0 : 1 + f <= w := by decide) (h1: 0 < f := by 
          (h1
          )
 
+def ofNatWithDetails (x : Nat) (s : Sign) (w : Nat) (f : Nat) (h0 : signStorage s + f <= w := by decide) (h1: 0 < f := by decide): Q s w f :=
+    .mk x (by
+            simp only [signStorage, Nat.zero_add,hasEnoughStorage]
+            assumption
+
+         )
+         (h1
+         )
 /--
   Create a fixed point number from a BitVec.
 
@@ -495,5 +503,36 @@ def narrowWithRoundAndSat (q : Q (s : Sign) (storage : Nat) (fractional : Nat)) 
 
 end Q
 
+--section Syntax
+
+syntax:max num noWs "#sq" num : term
+syntax:max num noWs "#uq" num : term
+
+open Lean.Macro in
+macro_rules
+| `($i:num#sq$n:num) =>
+  if (n.getNat + 1 <= 8)
+  then `(ofNatWithDetails $i .isSigned 8 $n)
+  else if (n.getNat + 1 <= 16)
+  then `(ofNatWithDetails $i .isSigned 16 $n)
+  else if (n.getNat + 1 <= 32)
+  then `(ofNatWithDetails $i .isSigned 32 $n)
+  else if (n.getNat + 1 <= 64)
+  then `(ofNatWithDetails $i .isSigned 64 $n)
+  else do
+    throwError s!"FixedPoint: {i.getNat}#sq{n.getNat} syntax is not supported"
+| `($i:num#uq$n:num) =>
+  if (n.getNat <= 8)
+  then `(ofNatWithDetails $i .isUnsigned 8 $n)
+  else if (n.getNat <= 16)
+  then `(ofNatWithDetails $i .isUnsigned 16 $n)
+  else if (n.getNat <= 32)
+  then `(ofNatWithDetails $i .isUnsigned 32 $n)
+  else if (n.getNat <= 64)
+  then `(ofNatWithDetails $i .isUnsigned 64 $n)
+  else do
+    throwError s!"FixedPoint: {i.getNat}#uq{n.getNat} syntax is not supported"
+
+--end Syntax
 
 end FixedPoint
